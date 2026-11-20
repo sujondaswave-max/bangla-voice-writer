@@ -1,0 +1,33 @@
+name: Build Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find project
+        run: |
+          Z=$(ls *.zip 2>/dev/null | head -n1 || true)
+          if [ -n "$Z" ] && [ -z "$(find . -path '*/app/build.gradle.kts' -not -path './.git/*' | head -n1)" ]; then unzip -q "$Z"; fi
+          F=$(find . -path '*/app/build.gradle.kts' -not -path './.git/*' | head -n1)
+          echo "PROJECT_DIR=$(dirname "$(dirname "$F")")" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Build debug APK
+        run: |
+          cd "$PROJECT_DIR"
+          gradle --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BanglaVoiceWriter-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
